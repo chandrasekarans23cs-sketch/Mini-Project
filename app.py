@@ -30,7 +30,7 @@ def create_sequences(series, window_size=10):
 # Streamlit UI
 # ----------------------------
 st.title("🌍 India AQI Forecasting (2010–2024)")
-st.write("Forecast AQI using Random Forest + GRU with SHAP & LIME")
+st.write("Forecast pollutant averages using Random Forest + GRU with SHAP & LIME")
 
 uploaded_file = st.file_uploader("Upload India AQI Dataset (CSV)", type="csv")
 
@@ -56,7 +56,7 @@ if uploaded_file is not None:
         df = df[df["state"] == "Tamil Nadu"]
 
     # Visualization
-    if date_col:
+    if date_col and "pollutant_avg" in df.columns:
         st.write("### Pollutant Trends (Average Values)")
         fig, ax = plt.subplots()
         sns.lineplot(x=date_col, y="pollutant_avg", data=df, ax=ax, label="Pollutant Avg")
@@ -64,14 +64,15 @@ if uploaded_file is not None:
         st.pyplot(fig)
 
     # Features & Target
-    features = ["pollutant_min", "pollutant_max"]
+    features = [col for col in ["pollutant_min", "pollutant_max", "latitude", "longitude"] if col in df.columns]
     target = "pollutant_avg"
 
     if target not in df.columns:
-        st.error("❌ No 'pollutant_avg' column found in dataset. Please check your file.")
+        st.error("❌ No 'pollutant_avg' column found in dataset.")
     else:
-        X = df[features].dropna()
-        y = df[target].loc[X.index]
+        # Ensure numeric and drop NaNs
+        X = df[features].apply(pd.to_numeric, errors="coerce").dropna()
+        y = df[target].loc[X.index].apply(pd.to_numeric, errors="coerce")
 
         # Random Forest
         st.write("### Random Forest Model")
