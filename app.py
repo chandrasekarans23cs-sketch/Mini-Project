@@ -53,7 +53,7 @@ if uploaded_file is not None:
     st.write("### Data Preview")
     st.dataframe(df.head())
 
-    # Optional: focus on Tamil Nadu (comment out if too restrictive)
+    # Optional: focus on Tamil Nadu
     if "state" in df.columns:
         if "Tamil Nadu" in df["state"].unique():
             df = df[df["state"] == "Tamil Nadu"]
@@ -62,8 +62,12 @@ if uploaded_file is not None:
 
     # Visualization: pollutant_avg trend
     if date_col and "pollutant_avg" in df.columns:
-        # Aggregate daily averages
-        df_daily = df.resample("D", on="last_update").mean().reset_index()
+        # Keep only numeric columns for resampling
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        df_numeric = df[["last_update"] + numeric_cols]
+
+        # Aggregate daily averages safely
+        df_daily = df_numeric.resample("D", on="last_update").mean().reset_index()
 
         st.write("### Pollutant Trends (Average Values)")
         fig, ax = plt.subplots()
