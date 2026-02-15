@@ -58,12 +58,14 @@ if uploaded_file is not None:
         else:
             st.info("ℹ️ No Tamil Nadu rows found, using full dataset instead.")
 
-    # Visualization
+    # Visualization: pollutant_avg trend
     if date_col and "pollutant_avg" in df.columns:
         st.write("### Pollutant Trends (Average Values)")
         fig, ax = plt.subplots()
         sns.lineplot(x=date_col, y="pollutant_avg", data=df, ax=ax, label="Pollutant Avg")
-        plt.legend()
+        ax.set_title("Pollutant Average Over Time")
+        ax.set_xlabel("Date")
+        ax.set_ylabel("Pollutant Avg")
         st.pyplot(fig)
 
     # Target = pollutant_avg
@@ -98,12 +100,14 @@ if uploaded_file is not None:
             st.write("MAE:", mean_absolute_error(y, rf_preds))
             st.write("R²:", r2_score(y, rf_preds))
 
-            # SHAP
+            # SHAP Feature Importance
             st.write("### SHAP Feature Importance")
             explainer = shap.TreeExplainer(rf)
             shap_values = explainer.shap_values(X)
+
+            fig_shap = plt.figure()
             shap.summary_plot(shap_values, X, show=False)
-            st.pyplot(plt.gcf())
+            st.pyplot(fig_shap)
 
             # GRU Model
             st.write("### GRU Model")
@@ -125,7 +129,7 @@ if uploaded_file is not None:
             st.write("MAE:", mean_absolute_error(y_seq, gru_preds))
             st.write("R²:", r2_score(y_seq, gru_preds))
 
-            # LIME
+            # LIME Explanation
             st.write("### LIME Explanation (Random Forest)")
             lime_explainer = LimeTabularExplainer(
                 training_data=np.array(X),
@@ -135,7 +139,7 @@ if uploaded_file is not None:
             exp = lime_explainer.explain_instance(X.iloc[0].values, rf.predict)
             st.write(exp.as_list())
 
-            # Health Advisory (based on pollutant_avg thresholds)
+            # Health Advisory
             st.write("### Health Advisory")
             latest_aqi = rf_preds[-1]
             if latest_aqi < 50:
