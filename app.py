@@ -51,7 +51,7 @@ if uploaded_file is not None:
     st.write("### Data Preview")
     st.dataframe(df.head())
 
-    # Focus on Tamil Nadu (optional)
+    # Optional: focus on Tamil Nadu
     if "state" in df.columns:
         df = df[df["state"] == "Tamil Nadu"]
 
@@ -63,71 +63,81 @@ if uploaded_file is not None:
         plt.legend()
         st.pyplot(fig)
 
-    # Features & Target
-    features = [col for col in ["pollutant_min", "pollutant_max", "latitude", "longitude"] if col in df.columns]
+    # Target = pollutant_avg
     target = "pollutant_avg"
-
     if target not in df.columns:
         st.error("❌ No 'pollutant_avg' column found in dataset.")
     else:
-        # Ensure numeric and drop NaNs
-        X = df[features].apply(pd.to_numeric, errors="coerce").dropna()
-        y = df[target].loc[X.index].apply(pd.to_numeric, errors="coerce")
+        # Identify numeric columns automatically
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        features = [col for col in numeric_cols if col != target]
 
-        # Random Forest
-        st.write("### Random Forest Model")
-        rf = RandomForestRegressor(n_estimators=100, random_state=42)
-        rf.fit(X, y)
-        rf_preds = rf.predict(X)
+        # Build X and y
+        X = df[features].apply(pd.to_numeric, errors="coerce")
+        y = df[target].apply(pd.to_numeric, errors="coerce")
 
-        st.write("**Performance (Random Forest):**")
-        st.write("RMSE:", np.sqrt(mean_squared_error(y, rf_preds)))
-        st.write("MAE:", mean_absolute_error(y, rf_preds))
-        st.write("R²:", r2_score(y, rf_preds))
+        # Drop rows with NaNs in either X or y
+        valid_idx = X.dropna().index.intersection(y.dropna().index)
+        X = X.loc[valid_idx]
+        y = y.loc[valid_idx]
 
-        # SHAP
-        st.write("### SHAP Feature Importance")
-        explainer = shap.TreeExplainer(rf)
-        shap_values = explainer.shap_values(X)
-        shap.summary_plot(shap_values, X, show=False)
-        st.pyplot(plt.gcf())
-
-        # GRU Model
-        st.write("### GRU Model")
-        series = y.values
-        X_seq, y_seq = create_sequences(series, window_size=10)
-        X_seq = X_seq.reshape((X_seq.shape[0], X_seq.shape[1], 1))
-
-        model = Sequential([
-            GRU(64, activation="relu", input_shape=(X_seq.shape[1], 1)),
-            Dense(1)
-        ])
-        model.compile(optimizer="adam", loss="mse")
-        model.fit(X_seq, y_seq, epochs=10, verbose=0)
-
-        gru_preds = model.predict(X_seq)
-
-        st.write("**Performance (GRU):**")
-        st.write("RMSE:", np.sqrt(mean_squared_error(y_seq, gru_preds)))
-        st.write("MAE:", mean_absolute_error(y_seq, gru_preds))
-        st.write("R²:", r2_score(y_seq, gru_preds))
-
-        # LIME
-        st.write("### LIME Explanation (Random Forest)")
-        lime_explainer = LimeTabularExplainer(
-            training_data=np.array(X),
-            feature_names=X.columns,
-            mode="regression"
-        )
-        exp = lime_explainer.explain_instance(X.iloc[0].values, rf.predict)
-        st.write(exp.as_list())
-
-        # Health Advisory (based on pollutant_avg thresholds)
-        st.write("### Health Advisory")
-        latest_aqi = rf_preds[-1]
-        if latest_aqi < 50:
-            st.success("Air Quality is Good ✅")
-        elif latest_aqi < 100:
-            st.info("Air Quality is Moderate ⚠️")
+        if len(X) == 0:
+            st.warning("⚠️ No valid numeric rows found after cleaning. Please check dataset.")
         else:
-            st.error("Air Quality is Poor ❌ - Limit outdoor activity")
+            # Random Forest
+            st.write("### Random Forest Model")
+            rf = RandomForestRegressor(n_estimators=100, random_state=42)
+            rf.fit(X, y)
+            rf_preds = rf.predict(X)
+
+            st.write("**Performance (Random Forest):**")
+            st.write("RMSE:", np.sqrt(mean_squared_error(y, rf_preds)))
+            st.write("MAE:", mean_absolute_error(y, rf_preds))
+            st.write("R²:", r2_score(y, rf_preds))
+
+            # SHAP
+            st.write("### SHAP Feature Importance")
+            explainer = shap.TreeExplainer(rf)
+            shap_values = explainer.shap_values(X)
+            shap.summary_plot(shap_values, X, show=False)
+            st.pyplot(plt.gcf())
+
+            # GRU Model
+            st.write("### GRU Model")
+            series = y.values
+            X_seq, y_seq = create_sequences(series, window_size=10)
+            X_seq = X_seq.reshape((X_seq.shape[0], X_seq.shape[1], 1))
+
+            model = Sequential([
+                GRU(64, activation="relu", input_shape=(X_seq.shape[1], 1)),
+                Dense(1)
+            ])
+            model.compile(optimizer="adam", loss="mse")
+            model.fit(X_seq, y_seq, epochs=10, verbose=0)
+
+            gru_preds = model.predict(X_seq)
+
+            st.write("**Performance (GRU):**")
+            st.write("RMSE:", np.sqrt(mean_squared_error(y_seq, gru_preds)))
+            st.write("MAE:", mean_absolute_error(y_seq, gru_preds))
+            st.write("R²:", r2_score(y_seq, gru_preds))
+
+            # LIME
+            st.write("### LIME Explanation (Random Forest)")
+            lime_explainer = LimeTabularExplainer(
+                training_data=np.array(X),
+                feature_names=X.columns,
+                mode="regression"
+            )
+            exp = lime_explainer.explain_instance(X.iloc[0].values, rf.predict)
+            st.write(exp.as_list())
+
+            # Health Advisory (based on pollutant_avg thresholds)
+            st.write("### Health Advisory")
+            latest_aqi = rf_preds[-1]
+            if latest_aqi < 50:
+                st.success("Air Quality is Good ✅")
+            elif latest_aqi < 100:
+                st.info("Air Quality is Moderate ⚠️")
+            else:
+                st.error("Air Quality is Poor ❌ - Limit outdoor activity")
