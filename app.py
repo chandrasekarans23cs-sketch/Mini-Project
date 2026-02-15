@@ -41,7 +41,9 @@ if uploaded_file is not None:
 
     # Use 'last_update' as date if available
     if "last_update" in df.columns:
-        df["last_update"] = pd.to_datetime(df["last_update"], errors="coerce")
+        df["last_update"] = pd.to_datetime(df["last_update"], errors="coerce", infer_datetime_format=True)
+        df = df.dropna(subset=["last_update"])
+        df = df.sort_values("last_update")
         date_col = "last_update"
         st.write("✅ Using 'last_update' as the date column")
     else:
@@ -60,12 +62,16 @@ if uploaded_file is not None:
 
     # Visualization: pollutant_avg trend
     if date_col and "pollutant_avg" in df.columns:
+        # Aggregate daily averages
+        df_daily = df.resample("D", on="last_update").mean().reset_index()
+
         st.write("### Pollutant Trends (Average Values)")
         fig, ax = plt.subplots()
-        sns.lineplot(x=date_col, y="pollutant_avg", data=df, ax=ax, label="Pollutant Avg")
+        sns.lineplot(x="last_update", y="pollutant_avg", data=df_daily, ax=ax, label="Pollutant Avg")
         ax.set_title("Pollutant Average Over Time")
         ax.set_xlabel("Date")
         ax.set_ylabel("Pollutant Avg")
+        fig.autofmt_xdate()
         st.pyplot(fig)
 
     # Correlation Heatmap
