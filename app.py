@@ -1,4 +1,4 @@
-# streamlit_aqi.py
+# streamlit_india_aqi.py
 
 import streamlit as st
 import pandas as pd
@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score, precision_score, recall_score, f1_score, roc_auc_score
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
@@ -19,7 +19,7 @@ from lime.lime_tabular import LimeTabularExplainer
 # ----------------------------
 # Helper Functions
 # ----------------------------
-def create_sequences(series, window_size=5):
+def create_sequences(series, window_size=10):
     X, y = [], []
     for i in range(len(series) - window_size):
         X.append(series[i:i+window_size])
@@ -29,30 +29,32 @@ def create_sequences(series, window_size=5):
 # ----------------------------
 # Streamlit UI
 # ----------------------------
-st.title("🌍 Air Quality Index (AQI) Forecasting")
+st.title("🌍 India AQI Forecasting (2010–2024)")
 st.write("Predict AQI using Random Forest + LSTM/GRU with SHAP & LIME interpretability")
 
-uploaded_file = st.file_uploader("Upload CSV with pollutants + environmental features", type="csv")
+uploaded_file = st.file_uploader("Upload India AQI Dataset (CSV)", type="csv")
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file, parse_dates=["date"])
     st.write("### Data Preview")
     st.dataframe(df.head())
 
+    # Focus on Tamil Nadu (optional)
+    if "state" in df.columns:
+        df = df[df["state"] == "Tamil Nadu"]
+
     # Visualization
     st.write("### Pollutant Trends")
     fig, ax = plt.subplots()
-    sns.lineplot(x="date", y="PM2.5", data=df, ax=ax, label="PM2.5")
-    sns.lineplot(x="date", y="PM10", data=df, ax=ax, label="PM10")
-    sns.lineplot(x="date", y="NO2", data=df, ax=ax, label="NO2")
-    sns.lineplot(x="date", y="SO2", data=df, ax=ax, label="SO2")
-    sns.lineplot(x="date", y="O3", data=df, ax=ax, label="O3")
+    for pollutant in ["PM2.5","PM10","NO2","SO2","O3","CO"]:
+        if pollutant in df.columns:
+            sns.lineplot(x="date", y=pollutant, data=df, ax=ax, label=pollutant)
     plt.legend()
     st.pyplot(fig)
 
     # Features & Target
-    features = ["PM10","NO2","SO2","O3","CO","wind_speed","humidity","traffic"]
-    target = "PM2.5"
+    features = [col for col in df.columns if col not in ["date","AQI","state","station"]]
+    target = "AQI"
     X = df[features].dropna()
     y = df[target].loc[X.index]
 
