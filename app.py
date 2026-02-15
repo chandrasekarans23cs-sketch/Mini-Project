@@ -51,9 +51,12 @@ if uploaded_file is not None:
     st.write("### Data Preview")
     st.dataframe(df.head())
 
-    # Optional: focus on Tamil Nadu
+    # Optional: focus on Tamil Nadu (comment out if too restrictive)
     if "state" in df.columns:
-        df = df[df["state"] == "Tamil Nadu"]
+        if "Tamil Nadu" in df["state"].unique():
+            df = df[df["state"] == "Tamil Nadu"]
+        else:
+            st.info("ℹ️ No Tamil Nadu rows found, using full dataset instead.")
 
     # Visualization
     if date_col and "pollutant_avg" in df.columns:
@@ -82,7 +85,7 @@ if uploaded_file is not None:
         y = y.loc[valid_idx]
 
         if len(X) == 0:
-            st.warning("⚠️ No valid numeric rows found after cleaning. Please check dataset.")
+            st.warning("⚠️ No valid numeric rows found after cleaning. Try removing filters or check dataset.")
         else:
             # Random Forest
             st.write("### Random Forest Model")
