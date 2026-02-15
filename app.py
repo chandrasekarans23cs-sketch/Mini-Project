@@ -68,6 +68,25 @@ if uploaded_file is not None:
         ax.set_ylabel("Pollutant Avg")
         st.pyplot(fig)
 
+    # Correlation Heatmap
+    st.write("### Correlation Heatmap of Numeric Features")
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    if len(numeric_cols) > 1:
+        corr = df[numeric_cols].corr()
+        fig_corr, ax = plt.subplots()
+        sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax)
+        ax.set_title("Correlation Matrix")
+        st.pyplot(fig_corr)
+
+    # Distribution Plot
+    if "pollutant_avg" in df.columns:
+        st.write("### Distribution of Pollutant Average")
+        fig_dist, ax = plt.subplots()
+        sns.histplot(df["pollutant_avg"].dropna(), bins=30, kde=True, ax=ax)
+        ax.set_title("Distribution of Pollutant Avg")
+        ax.set_xlabel("Pollutant Avg")
+        st.pyplot(fig_dist)
+
     # Target = pollutant_avg
     target = "pollutant_avg"
     if target not in df.columns:
