@@ -35,47 +35,40 @@ st.write("Forecast AQI using Random Forest + GRU with SHAP & LIME")
 uploaded_file = st.file_uploader("Upload India AQI Dataset (CSV)", type="csv")
 
 if uploaded_file is not None:
-    # Load dataset without forcing a date column
     df = pd.read_csv(uploaded_file)
     st.write("### Columns in Dataset")
     st.write(list(df.columns))
 
-    # Try to detect a date column automatically
-    possible_date_cols = ["date", "Date", "timestamp", "Datetime", "datetime"]
-    date_col = None
-    for col in possible_date_cols:
-        if col in df.columns:
-            date_col = col
-            break
-
-    if date_col:
-        df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
-        st.write(f"✅ Using '{date_col}' as the date column")
+    # Use 'last_update' as date if available
+    if "last_update" in df.columns:
+        df["last_update"] = pd.to_datetime(df["last_update"], errors="coerce")
+        date_col = "last_update"
+        st.write("✅ Using 'last_update' as the date column")
     else:
+        date_col = None
         st.warning("⚠️ No date column detected. Proceeding without time-based plots.")
 
     st.write("### Data Preview")
     st.dataframe(df.head())
 
-    # Optional: focus on Tamil Nadu
+    # Focus on Tamil Nadu (optional)
     if "state" in df.columns:
         df = df[df["state"] == "Tamil Nadu"]
 
     # Visualization
     if date_col:
-        st.write("### Pollutant Trends")
+        st.write("### Pollutant Trends (Average Values)")
         fig, ax = plt.subplots()
-        for pollutant in ["PM2.5","PM10","NO2","SO2","O3","CO"]:
-            if pollutant in df.columns:
-                sns.lineplot(x=date_col, y=pollutant, data=df, ax=ax, label=pollutant)
+        sns.lineplot(x=date_col, y="pollutant_avg", data=df, ax=ax, label="Pollutant Avg")
         plt.legend()
         st.pyplot(fig)
 
     # Features & Target
-    features = [col for col in df.columns if col not in [date_col,"AQI","state","station"]]
-    target = "AQI"
+    features = ["pollutant_min", "pollutant_max"]
+    target = "pollutant_avg"
+
     if target not in df.columns:
-        st.error("❌ No 'AQI' column found in dataset. Please check your file.")
+        st.error("❌ No 'pollutant_avg' column found in dataset. Please check your file.")
     else:
         X = df[features].dropna()
         y = df[target].loc[X.index]
@@ -128,7 +121,7 @@ if uploaded_file is not None:
         exp = lime_explainer.explain_instance(X.iloc[0].values, rf.predict)
         st.write(exp.as_list())
 
-        # Health Advisory
+        # Health Advisory (based on pollutant_avg thresholds)
         st.write("### Health Advisory")
         latest_aqi = rf_preds[-1]
         if latest_aqi < 50:
